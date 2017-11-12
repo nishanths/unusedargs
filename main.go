@@ -3,6 +3,7 @@ package main
 import (
 	"flag"
 	"fmt"
+	"go/build"
 	"log"
 	"os"
 )
@@ -47,13 +48,43 @@ func main() {
 				handlePkg(pkg)
 			}
 		default:
-			panic("CODE BUG!")
+			panic("code bug")
 		}
 	}
 }
 
-func handleDir(p string) {}
+func isIgnorable(err error) bool {
+	if _, nogo := err.(*build.NoGoError); nogo {
+		// Don't complain if the failure is due to no Go source files.
+		return true
+	}
+	return false
+}
 
-func handleFiles(p ...string) {}
+func handleDir(p string) {
+	pkg, err := build.ImportDir(p, 0)
+	if err != nil {
+		if isIgnorable(err) {
+			os.Exit(0)
+		}
+		log.Fatal(err)
+	}
+	handleImportedPkg(pkg)
+}
 
-func handlePkg(p string) {}
+func handleFiles(p ...string) {
+}
+
+func handlePkg(p string) {
+	pkg, err := build.Import(p, ".", 0)
+	if err != nil {
+		if isIgnorable(err) {
+			os.Exit(0)
+		}
+		log.Fatal(err)
+	}
+	handleImportedPkg(pkg)
+}
+
+func handleImportedPkg(pkg *build.Package) {
+}
