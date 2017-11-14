@@ -3,10 +3,10 @@
 default: run
 
 run: build
-	@./unusedarg go.avalanche.space/lyft
+	@./unusedarg ~/go/src/go.avalanche.space/lyft-go/...
 
 build:
 	@go build -i ./...
 
 clean:
-	@rm -rf ./unusedarg
+	@rm ./unusedarg
