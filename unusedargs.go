@@ -38,7 +38,7 @@
 //
 // which makes it clear to clients that the inputs are not used by the method.
 //
-// Ignoring certain types
+// Ignoring types
 //
 // To ignore certain types, use the -ignore flag. This is useful for silencing
 // reports on types such as context.Context, which typically are introduced
