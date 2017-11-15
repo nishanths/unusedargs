@@ -59,7 +59,7 @@ import (
 	"path/filepath"
 	"sort"
 
-	usages "github.com/nishanths/unusedargs/usages"
+	"github.com/nishanths/unusedargs/usages"
 )
 
 const help = `Usage:
