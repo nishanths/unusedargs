@@ -5,7 +5,7 @@
 //
 //   ... main.go ...
 //   func authURL(clientID, code int, state string) string {
-//	     return fmt.Sprintf("https://example.org/?client_id=%d&code=%d", clientID, code)
+//       return fmt.Sprintf("https://example.org/?client_id=%d&code=%d", clientID, code)
 //   }
 //
 // running the command will produce:
