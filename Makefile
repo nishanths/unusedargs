@@ -1,12 +1,12 @@
-.PHONY: clean install run
+.PHONY: clean build run
 
 default: run
 
 run: build
-	@./unusedarg ~/go/src/go.avalanche.space/lyft-go/...
+	@./unusedargs ~/go/src/go.avalanche.space/lyft-go/...
 
 build:
 	@go build -i ./...
 
 clean:
-	@rm ./unusedarg
+	@rm ./unusedargs
