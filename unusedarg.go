@@ -170,11 +170,6 @@ func isGenerated(src []byte) bool {
 	return false
 }
 
-const (
-	kindReceiver = "receiver"
-	kindParam    = "param"
-)
-
 func findUnused(files map[string][]byte, ignoreTypes map[string]struct{}) error {
 	fset := token.NewFileSet()
 	uniquePkgNames := make(map[string]struct{})
@@ -244,9 +239,23 @@ func findUnused(files map[string][]byte, ignoreTypes map[string]struct{}) error 
 		}
 	}
 
-	// Map from function to the inputs that need to be
-	// satisfied for that function.
-	toSatisfy := make(map[function][]functionInput)
+	// Map from function input's position to the function input target that needs
+	// to be satisfied. token.Position is valid to use as a map key here
+	// because of its uniqueness across files. However, it is not unique
+	// across packages.
+	//
+	// Invariant: len(toSatisfy) == number of inputs across all functions,
+	// excluding filtered out inputs.
+	//
+	// The map is structured this way since we need to be able to:
+	//   1. Lookup the funcInput for a given position quickly
+	//   2. Iterate over funcInputs to see which ones haven't been satisfied; and
+	//   3. For the unsatisfied funcInputs, print the function's name and position.
+	type targetsInPackage map[token.Position]target
+
+	// Map from package name to targets for the package.
+	allTargets := make(map[string]targetsInPackage)
+
 	matches := matchesTypes(ignoreTypes)
 
 	for _, f := range parsedFiles {
@@ -257,23 +266,22 @@ func findUnused(files map[string][]byte, ignoreTypes map[string]struct{}) error 
 
 		// Walk looking for functions.
 		ast.Walk(walker(func(n ast.Node) {
-			var inp []functionInput
-			var fun function
+			var inp []funcInput
+			var funcPosition token.Position
+			var funcName string
 
 			// Functions can either be function declarations (top-level)
 			// or function literals.
 			switch c := n.(type) {
 			case *ast.FuncDecl:
 				inp = inputs(c.Recv, c.Type.Params)
-				fun.position = fset.Position(c.Pos())
-				fun.name = c.Name.Name
+				funcPosition = fset.Position(c.Pos())
+				funcName = c.Name.Name
 			case *ast.FuncLit:
 				inp = inputs(nil, c.Type.Params)
-				fun.position = fset.Position(c.Pos())
+				funcPosition = fset.Position(c.Pos())
 			}
 
-			// Filter inputs.
-			var filtered []functionInput
 			for _, in := range inp {
 				if isBlankIdent(in.ident, in.field, f.info) {
 					continue
@@ -281,30 +289,75 @@ func findUnused(files map[string][]byte, ignoreTypes map[string]struct{}) error 
 				if matches(in.ident, in.field, f.info) {
 					continue
 				}
-				filtered = append(filtered, in)
+				if allTargets[f.pkg] == nil {
+					allTargets[f.pkg] = make(targetsInPackage)
+				}
+				allTargets[f.pkg][fset.Position(in.pos)] = target{
+					input:        in,
+					funcPosition: funcPosition,
+					funcName:     funcName,
+				}
 			}
-
-			// Add to the map of things to satisfy.
-			toSatisfy[fun] = filtered
 		}), f.file)
 	}
 
 	for _, pkg := range sortedPkgNames {
-		for id, obj := range pkgInfos[pkg].Uses {
-			fmt.Printf("%s: %q uses %v pos=%d\n", fset.Position(id.Pos()), id.Name, obj, obj.Pos())
+		targets := allTargets[pkg] // targets for this package.
+
+		// Mark inputs as satisfied
+		for _, obj := range pkgInfos[pkg].Uses {
+			in, ok := targets[fset.Position(obj.Pos())]
+			if !ok {
+				continue // not a use we care about
+			}
+			in.satisfiedBy++
+			targets[fset.Position(obj.Pos())] = in
+		}
+
+		// Print the unsatisfied inputs.
+		// First, sort by the filename, line number, and column so that ordering is the same
+		// across runs.
+		var sortedTargets []target
+		for _, v := range targets {
+			sortedTargets = append(sortedTargets, v)
+		}
+
+		sort.Slice(sortedTargets, func(i, j int) bool {
+			a, b := sortedTargets[i], sortedTargets[j]
+			if a.funcPosition.Filename < b.funcPosition.Filename {
+				return true
+			}
+			if a.funcPosition.Filename > b.funcPosition.Filename {
+				return false
+			}
+			if a.funcPosition.Line < b.funcPosition.Line {
+				return true
+			}
+			if a.funcPosition.Line > b.funcPosition.Line {
+				return false
+			}
+			return a.funcPosition.Column < b.funcPosition.Column
+		})
+
+		for _, t := range sortedTargets {
+			name := t.funcName
+			if name == "" {
+				name = "function literal"
+			}
+			if t.satisfiedBy < 1 {
+				fmt.Printf("%s: %s has unused %s %s\n", t.funcPosition, name, t.input.kind, t.input.ident)
+			}
 		}
 	}
 
 	return nil
 }
 
-// function is a combination of a function's position
-// and it's name (if any). The name is absent for function literals.
-// It should suited for use as a map key; the position's uniqueness
-// makes this possible.
-type function struct {
-	position token.Position
-	name     string
+type target struct {
+	input        funcInput
+	funcPosition token.Position
+	funcName     string
+	satisfiedBy  int
 }
 
 type file struct {
@@ -315,22 +368,28 @@ type file struct {
 	generated bool
 }
 
-type functionInput struct {
-	ident     *ast.Ident
-	field     *ast.Field
-	kind      string
-	satisfied bool
+const (
+	kindReceiver = "receiver"
+	kindParam    = "param"
+)
+
+type funcInput struct {
+	ident *ast.Ident
+	field *ast.Field
+	kind  string
+	pos   token.Pos
 }
 
-func inputs(recv, params *ast.FieldList) []functionInput {
-	var inp []functionInput
+func inputs(recv, params *ast.FieldList) []funcInput {
+	var inp []funcInput
 	if recv != nil {
 		for _, field := range recv.List {
 			for _, name := range field.Names {
-				inp = append(inp, functionInput{
+				inp = append(inp, funcInput{
 					ident: name,
 					field: field,
 					kind:  kindReceiver,
+					pos:   name.NamePos,
 				})
 			}
 		}
@@ -339,10 +398,11 @@ func inputs(recv, params *ast.FieldList) []functionInput {
 		// Params without names such as func foo(int) are automatically
 		// ignored since Names will be empty.
 		for _, name := range field.Names {
-			inp = append(inp, functionInput{
+			inp = append(inp, funcInput{
 				ident: name,
 				field: field,
 				kind:  kindParam,
+				pos:   name.NamePos,
 			})
 		}
 	}
