@@ -1,3 +1,5 @@
+// Packages usages finds the usage sites of the all the receivers and parameters
+// of functions in a set of Go source files.
 package usages
 
 import (
