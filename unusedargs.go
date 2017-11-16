@@ -1,6 +1,5 @@
 // Command unusedargs reports unused receivers and paramters for functions
-// in the specified files, directories, or packages. The exit status is 0 if
-// there were no warnings reported, and 1 if there were warnings.
+// in the specified files, directories, or packages.
 //
 //   func authURL(clientID, code int, state string) string {
 //       return fmt.Sprintf("https://example.org/?client_id=%d&code=%d", clientID, code)
@@ -8,6 +7,9 @@
 //
 //   $ unusedargs
 //   /home/growl/go/src/code.org/x/main.go:8:1: authURL has unused param state
+//
+// The exit code is 0 if there were no unused receivers or params, and it is
+// 1 if there was an unused receiver or param or if a parser error occurred.
 //
 // Ignoring types
 //

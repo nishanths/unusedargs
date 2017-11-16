@@ -1,5 +1,6 @@
 // Packages usages finds the usage sites of the all the receivers and parameters
-// of functions in a set of Go source files.
+// of functions in a set of Go source files. The API isn't great; it's suited
+// for use by the unusedargs command.
 package usages
 
 import (
