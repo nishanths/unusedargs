@@ -1,7 +1,6 @@
 // Command unusedargs reports unused receivers and paramters for functions
-// in the specified files, directories, or packages.
-//
-// For example:
+// in the specified files, directories, or packages. The exit status is 0 if
+// there were no warnings reported, and 1 if there were warnings.
 //
 //   func authURL(clientID, code int, state string) string {
 //       return fmt.Sprintf("https://example.org/?client_id=%d&code=%d", clientID, code)
@@ -10,8 +9,13 @@
 //   $ unusedargs
 //   /home/growl/go/src/code.org/x/main.go:8:1: authURL has unused param state
 //
-// The lack of usage of the blank identifier in the function body won't be reported
-// by the program (as one would expect).
+// Ignoring types
+//
+// To ignore certain types, use the -ignore flag. This is useful for silencing
+// reports on types such as context.Context, which typically are introduced
+// incrementally through a codebase.
+//
+//    $ unusedargs -ignore "context.Context" code.org/pkg
 //
 // Methods satisfying an interface
 //
@@ -34,15 +38,8 @@
 //       return 0, nil
 //   }
 //
-// which makes it clear to clients that the inputs are not used by the method.
-//
-// Ignoring types
-//
-// To ignore certain types, use the -ignore flag. This is useful for silencing
-// reports on types such as context.Context, which typically are introduced
-// incrementally through a codebase.
-//
-//    $ unusedargs -ignore "context.Context" code.org/pkg
+// which makes it clear to clients that the inputs are not used by the method,
+// and also makes the command no longer print a warning.
 //
 package main
 
@@ -68,7 +65,7 @@ const help = `Usage:
 
 Flags:
   -ignore <type>    Don't complain about the specified type; can be repeated to specify  
-                    multiple types to ignore.
+                    multiple types to ignore. For example: -ignore "context.Context".
   -h, -help         Print usage information and exit.
 `
 
@@ -223,6 +220,8 @@ func handleFiles(files []string) {
 		return resultsOrder[i] < resultsOrder[j]
 	})
 
+	exitStatus := 0
+
 	// Print results.
 	for _, pkg := range resultsOrder {
 		for _, r := range results[pkg] {
@@ -240,7 +239,10 @@ func handleFiles(files []string) {
 			if name == "" {
 				name = "function literal"
 			}
+			exitStatus = 1
 			fmt.Printf("%s: %s has unused %s %s\n", r.FuncPosition, name, r.Kind, r.Ident.Name)
 		}
 	}
+
+	os.Exit(exitStatus)
 }
