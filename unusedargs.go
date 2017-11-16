@@ -237,7 +237,7 @@ func handleFiles(files []string) {
 			}
 			name := r.FuncName
 			if name == "" {
-				name = "function literal"
+				name = "func"
 			}
 			exitStatus = 1
 			fmt.Printf("%s: %s has unused %s %s\n", r.FuncPosition, name, r.Kind, r.Ident.Name)

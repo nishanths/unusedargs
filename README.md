@@ -42,7 +42,7 @@ func (*BlackHole) Write(_ []byte) (int, error) {
 }
 ```
 
-which will make `unusedargs` no longer print a warning, and has the advanatage 
+which will make `unusedargs` no longer print a warning, and has the advantage 
 of communicating to consumers of your code that the method never uses the inputs.
 
 ### License
