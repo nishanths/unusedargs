@@ -56,10 +56,11 @@ type target struct {
 // The results are presented in file order (i.e. sorted lexicographically
 // by filename, then line number, then column number).
 //
-// Invariant: len(results) == number of packages.
-// Invariant: len(results[key]) == number of receivers/params, except blank
-//            identifiers or unnamed receivers/params.
-func Find(files map[string][]byte) (results map[string][]Result, typeInfo map[string]*types.Info, warns map[string][]error, err error) {
+//   Invariant: len(results) == number of packages.
+//   Invariant: len(results[key]) == number of receivers/params, except blank
+//              identifiers or unnamed receivers/params.
+func Find(files map[string][]byte) (results map[string][]Result, typeInfo map[string]*types.Info,
+	warns map[string][]error, err error) {
 	fset := token.NewFileSet()
 	uniquePkgNames := make(map[string]struct{})
 	var parsedFiles []file

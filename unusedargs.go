@@ -1,15 +1,13 @@
 // Command unusedargs reports unused receivers and paramters for functions
 // in the specified files, directories, or packages.
 //
-// For example, for the code:
+// For example:
 //
-//   ... main.go ...
 //   func authURL(clientID, code int, state string) string {
 //       return fmt.Sprintf("https://example.org/?client_id=%d&code=%d", clientID, code)
 //   }
 //
-// running the command will produce:
-//
+//   $ unusedargs
 //   /home/growl/go/src/code.org/x/main.go:8:1: authURL has unused param state
 //
 // The lack of usage of the blank identifier in the function body won't be reported
