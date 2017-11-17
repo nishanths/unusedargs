@@ -43,7 +43,6 @@ import (
 	"flag"
 	"fmt"
 	"go/build"
-	"go/types"
 	"io"
 	"io/ioutil"
 	"log"
@@ -242,9 +241,4 @@ func handleFiles(files []string) {
 			fmt.Fprintf(output, "%s: %s has unused %s %s\n", r.FuncPosition, name, r.Kind, r.Ident.Name)
 		}
 	}
-}
-
-func fullyQualified(p *types.Package) string {
-	fmt.Println("path=", p.Path())
-	return p.Path()
 }

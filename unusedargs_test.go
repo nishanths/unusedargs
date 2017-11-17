@@ -10,6 +10,7 @@ func TestHandleFiles(t *testing.T) {
 		"testdata/pkg1/pkg1.go",
 		"testdata/pkg1/pkg1_test.go",
 		"testdata/pkg1/ext_test.go",
+		"testdata/pkg1/generated.go",
 		"testdata/pkg2/pkg2.go",
 	}
 
