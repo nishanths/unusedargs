@@ -6,19 +6,11 @@
 //   }
 //
 //   $ unusedargs
-//   /home/growl/go/src/code.org/x/main.go:8:1: authURL has unused param state
+//   main.go:8:1: authURL has unused param state
 //
 // The exit code is 0 if there were no unused receivers or params. It is
 // 1 if there was an unused receiver or param, or if a parser error occurred.
 // Generated files are not checked.
-//
-// Ignoring types
-//
-// To ignore certain types, use the -ignore flag. This is useful for silencing
-// reports on types such as context.Context, which typically are introduced
-// incrementally through a codebase.
-//
-//    $ unusedargs -ignore "context.Context" code.org/pkg
 //
 // Methods satisfying an interface
 //

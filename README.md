@@ -6,7 +6,7 @@ __Install:__ `go get github.com/nishanths/unusedargs`
 
 __Usage:__ `unusedargs -h`
 
-### Example
+## Example
 
 ```
 func authURL(clientID, code int, state string) string {
@@ -14,10 +14,10 @@ func authURL(clientID, code int, state string) string {
 }
 
 $ unusedargs
-/home/growl/go/src/code.org/x/main.go:8:1: authURL has unused param state
+main.go:8:1: authURL has unused param state
 ```
 
-### But I need the parameter to satisfy an interface
+## But I need the parameter to satisfy an interface
 
 Yes, sometimes there are legitimate reasons to have an unused parameter, such as when
 implementing an interface. For example, the `Write` method neither uses its receiver nor
@@ -44,7 +44,3 @@ func (*BlackHole) Write(_ []byte) (int, error) {
 
 which will make `unusedargs` no longer print a warning, and has the advantage 
 of communicating to consumers of your code that the method never uses the inputs.
-
-### License
-
-BSD 3-Clause.
