@@ -4,8 +4,6 @@
 package usages
 
 import (
-	"bufio"
-	"bytes"
 	"go/ast"
 	"go/parser"
 	"go/token"
@@ -35,10 +33,9 @@ type Result struct {
 }
 
 type file struct {
-	file      *ast.File
-	pkg       string
-	info      *types.Info
-	generated bool
+	file *ast.File
+	pkg  string
+	info *types.Info
 }
 
 type target struct {
@@ -77,7 +74,6 @@ func Find(files map[string][]byte) (results map[string][]Result, typeInfo map[st
 			file: f,
 			pkg:  f.Name.Name,
 			// info is set below
-			generated: isGenerated(content),
 		})
 	}
 
@@ -141,11 +137,6 @@ func Find(files map[string][]byte) (results map[string][]Result, typeInfo map[st
 
 	// Walk the parsed files; looking for functions.
 	for _, f := range parsedFiles {
-		// Don't look at generated files.
-		if f.generated {
-			continue
-		}
-
 		ast.Walk(walker(func(n ast.Node) {
 			var inp []funcInput
 			var funcPosition token.Position
@@ -290,22 +281,4 @@ type walker func(ast.Node)
 func (w walker) Visit(node ast.Node) ast.Visitor {
 	w(node)
 	return w
-}
-
-var (
-	genHdr = []byte("// Code generated ")
-	genFtr = []byte(" DO NOT EDIT.")
-)
-
-// isGenerated reports whether the source file is generated code
-// according to the rules from https://golang.org/s/generatedcode.
-func isGenerated(src []byte) bool {
-	sc := bufio.NewScanner(bytes.NewReader(src))
-	for sc.Scan() {
-		b := sc.Bytes()
-		if bytes.HasPrefix(b, genHdr) && bytes.HasSuffix(b, genFtr) && len(b) >= len(genHdr)+len(genFtr) {
-			return true
-		}
-	}
-	return false
 }

@@ -8,8 +8,9 @@
 //   $ unusedargs
 //   /home/growl/go/src/code.org/x/main.go:8:1: authURL has unused param state
 //
-// The exit code is 0 if there were no unused receivers or params, and it is
-// 1 if there was an unused receiver or param or if a parser error occurred.
+// The exit code is 0 if there were no unused receivers or params. It is
+// 1 if there was an unused receiver or param, or if a parser error occurred.
+// Generated files are not checked.
 //
 // Ignoring types
 //
@@ -42,14 +43,16 @@
 //
 // which makes it clear to clients that the inputs are not used by the method,
 // and also makes the command no longer print a warning.
-//
 package main
 
 import (
+	"bufio"
 	"bytes"
 	"flag"
 	"fmt"
 	"go/build"
+	"go/types"
+	"io"
 	"io/ioutil"
 	"log"
 	"os"
@@ -66,9 +69,9 @@ const help = `Usage:
   unusedarg [flags] [files]
 
 Flags:
-  -ignore <type>    Don't complain about the specified type; can be repeated to specify  
-                    multiple types to ignore. For example: -ignore "context.Context".
-  -h, -help         Print usage information and exit.
+  -h, -help    Print usage information and exit.
+  -strict      Fail if one of the supplied files could not be parsed or 
+               type checked, instead of skipping the files (default false).
 `
 
 func usage() {
@@ -76,33 +79,15 @@ func usage() {
 	os.Exit(2)
 }
 
-// mulitFlag can be a used as a flag.Var.
-type multiFlag map[string]struct{}
-
-func (m multiFlag) String() string {
-	var buf bytes.Buffer
-	i := 0
-	for k := range m {
-		buf.WriteString(k)
-		if i != len(m) {
-			buf.WriteString(", ")
-		}
-	}
-	return buf.String()
-}
-
-func (m multiFlag) Set(x string) error {
-	m[x] = struct{}{}
-	return nil
-}
-
-var ignoreTypes = make(multiFlag)
+var strict bool
+var output io.Writer = os.Stdout // where to write reports
+var exitCode int
 
 func main() {
 	log.SetFlags(0)
 	log.SetPrefix("unusedarg: ")
 
-	flag.Var(&ignoreTypes, "ignore", "types to ignore")
+	flag.BoolVar(&strict, "strict", false, "")
 	flag.Usage = usage
 	flag.Parse()
 
@@ -132,6 +117,26 @@ func main() {
 			panic("code bug: expected one dirsRun|filesRun|pkgsRun to be 1")
 		}
 	}
+
+	os.Exit(exitCode)
+}
+
+var (
+	genHdr = []byte("// Code generated ")
+	genFtr = []byte(" DO NOT EDIT.")
+)
+
+// isGenerated reports whether the source file is generated code
+// according to the rules from https://golang.org/s/generatedcode.
+func isGenerated(src []byte) bool {
+	sc := bufio.NewScanner(bytes.NewReader(src))
+	for sc.Scan() {
+		b := sc.Bytes()
+		if bytes.HasPrefix(b, genHdr) && bytes.HasSuffix(b, genFtr) && len(b) >= len(genHdr)+len(genFtr) {
+			return true
+		}
+	}
+	return false
 }
 
 func isIgnorable(err error) bool {
@@ -183,13 +188,16 @@ func handleFiles(files []string) {
 	for _, name := range files {
 		b, err := ioutil.ReadFile(name)
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "skipping: %s", err)
+			if strict {
+				log.Fatal(err)
+			}
+			fmt.Fprintf(os.Stderr, "skipping: %s\n", err)
 			continue
 		}
 		contents[name] = b
 	}
 
-	results, typeInfo, warns, err := usages.Find(contents)
+	results, _, warns, err := usages.Find(contents)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -206,11 +214,14 @@ func handleFiles(files []string) {
 	// Print warnings (once per package).
 	printedWarns := make(map[string]bool)
 	for _, pkg := range warnsOrder {
+		if strict {
+			log.Fatal(warns[pkg][0]) // there will be at least one if the package was in the warns map.
+		}
 		if printedWarns[pkg] {
 			continue // already printed
 		}
 		printedWarns[pkg] = true
-		fmt.Fprintf(os.Stderr, "failed to type check package %s: results may be partial")
+		fmt.Fprintf(os.Stderr, "failed to type check package %s: results may be partial\n", pkg)
 	}
 
 	// Sort results packages.
@@ -222,29 +233,26 @@ func handleFiles(files []string) {
 		return resultsOrder[i] < resultsOrder[j]
 	})
 
-	exitStatus := 0
-
 	// Print results.
 	for _, pkg := range resultsOrder {
 		for _, r := range results[pkg] {
 			if len(r.Uses) > 0 {
 				continue // has uses
 			}
-			t := typeInfo[pkg].TypeOf(r.Field.Type)
-			if t != nil {
-				_, ok := ignoreTypes[t.String()]
-				if ok {
-					continue // ignored type
-				}
+			if isGenerated(contents[r.Position.Filename]) {
+				continue // no warnings on generated files
 			}
 			name := r.FuncName
 			if name == "" {
 				name = "func"
 			}
-			exitStatus = 1
-			fmt.Printf("%s: %s has unused %s %s\n", r.FuncPosition, name, r.Kind, r.Ident.Name)
+			exitCode = 1
+			fmt.Fprintf(output, "%s: %s has unused %s %s\n", r.FuncPosition, name, r.Kind, r.Ident.Name)
 		}
 	}
+}
 
-	os.Exit(exitStatus)
+func fullyQualified(p *types.Package) string {
+	fmt.Println("path=", p.Path())
+	return p.Path()
 }
