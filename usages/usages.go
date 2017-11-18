@@ -127,9 +127,8 @@ func Find(files map[string][]byte) (results map[string][]Result, typeInfo map[st
 	// across packages.
 	//
 	// The map is structured this way since we need to be able to:
-	//   1. Lookup the funcInput for a given position quickly
-	//   2. Iterate over funcInputs to see which ones haven't been satisfied; and
-	//   3. For the unsatisfied funcInputs, print the function's name and position.
+	//   1. Lookup the target for a given position quickly
+	//   2. Iterate over targets to see which ones haven't been satisfied
 	type targetsForPackage map[token.Position]target
 
 	// Map from package name to targets for the package.
@@ -147,7 +146,7 @@ func Find(files map[string][]byte) (results map[string][]Result, typeInfo map[st
 			switch c := n.(type) {
 			case *ast.FuncDecl:
 				inp = inputs(c.Recv, c.Type.Params)
-				funcPosition = fset.Position(c.Pos())
+				funcPosition = fset.Position(c.Name.Pos())
 				funcName = c.Name.Name
 			case *ast.FuncLit:
 				inp = inputs(nil, c.Type.Params)
