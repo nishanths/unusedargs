@@ -136,7 +136,7 @@ func Find(files map[string][]byte) (results map[string][]Result, typeInfo map[st
 
 	// Walk the parsed files; looking for functions.
 	for _, f := range parsedFiles {
-		ast.Walk(walker(func(n ast.Node) {
+		ast.Inspect(f.file, func(n ast.Node) bool {
 			var inp []funcInput
 			var funcPosition token.Position
 			var funcName string
@@ -169,7 +169,9 @@ func Find(files map[string][]byte) (results map[string][]Result, typeInfo map[st
 					// uses filled in below
 				}
 			}
-		}), f.file)
+
+			return true
+		})
 	}
 
 	// Make results for each package.
@@ -272,12 +274,4 @@ func inputs(recv, params *ast.FieldList) []funcInput {
 
 func isBlankIdent(name *ast.Ident) bool {
 	return name.Name == "_"
-}
-
-// walker makes a function implement ast.Visitor.
-type walker func(ast.Node)
-
-func (w walker) Visit(node ast.Node) ast.Visitor {
-	w(node)
-	return w
 }
